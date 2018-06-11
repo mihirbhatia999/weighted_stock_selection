@@ -1,17 +1,22 @@
 # Project - Portfolio Management -------------------------------------------------------------------------------------------------
-setwd("/Users/anmolmadaan/Desktop/IE 590 Project /")
+library(ggplot2)
+library(ModelMetrics)
+
+#using 5 datasets from the UCI machine learning repository 
 PeriodAll.df <- read.csv("PeriodAll.csv",header = TRUE,skip = 1)
 Period1.df <- read.csv("Period1.csv",header = TRUE,skip = 1 )
 Period2.df <- read.csv("Period2.csv",header = TRUE,skip = 1)
 Period3.df <- read.csv("Period3.csv",header = TRUE,skip = 1)
 Period4.df <- read.csv("Period4.csv",header = TRUE,skip = 1)
 
+#resetting the column names to make it easier to code 
 colnames(Period1.df) <- c('ID','x1','x2','x3','x4','x5','x6','y1','y2','y3','y4','y5','y6','y11','y22','y33','y44','y55','y66')
 colnames(Period2.df) <- c('ID','x1','x2','x3','x4','x5','x6','y1','y2','y3','y4','y5','y6','y11','y22','y33','y44','y55','y66')
 colnames(Period3.df) <- c('ID','x1','x2','x3','x4','x5','x6','y1','y2','y3','y4','y5','y6','y11','y22','y33','y44','y55','y66')
 colnames(Period4.df) <- c('ID','x1','x2','x3','x4','x5','x6','y1','y2','y3','y4','y5','y6','y11','y22','y33','y44','y55','y66')
 colnames(PeriodAll.df) <-c('ID','x1','x2','x3','x4','x5','x6','y1','y2','y3','y4','y5','y6','y11','y22','y33','y44','y55','y66')
 
+#cleaning data---------------------------------------------------------------------------------------------------------------------
 cols.num <- c(8,9,11,12,13)
 Period1.df[cols.num] <- (sapply(Period1.df[cols.num],as.numeric))/100
 Period2.df[cols.num] <- (sapply(Period2.df[cols.num],as.numeric))/100
@@ -37,9 +42,6 @@ df.list[[5]] <- PeriodAll.df
 
 #preprocessing - summary
 
-#
-#pairs(), corr() between xs and ys in all the dataframes 
-#
 colnames(Period1.df) <- c('ID','x1','x2','x3','x4','x5','x6','Annual_Ret','Excess_Ret','Sys_Risk','Total_Risk','Abs_Risk','Rel_Win_Rate','Annual_Ret_norm','Excess Ret','Sys Risk','Total Risk','Abs_Risk_norm','Rel Win Rate')
 colnames(Period2.df) <- c('ID','x1','x2','x3','x4','x5','x6','Annual_Ret','Excess_Ret','Sys_Risk','Total_Risk','Abs_Risk','Rel_Win_Rate','Annual_Ret_norm','Excess Ret','Sys Risk','Total Risk','Abs_Risk_norm','Rel Win Rate')
 colnames(Period3.df) <- c('ID','x1','x2','x3','x4','x5','x6','Annual_Ret','Excess_Ret','Sys_Risk','Total_Risk','Abs_Risk','Rel_Win_Rate','Annual_Ret_norm','Excess Ret','Sys Risk','Total Risk','Abs_Risk_norm','Rel Win Rate')
@@ -87,24 +89,10 @@ corrplot(c55)
 pairs(Period1.df[,8:13])
 pairs(Period1.df[,2:13]) #no relations in this plot what so ever.
 pairs(Period2.df[,8:13])
-#
-#NOTE: We see that correlation has actually increased after the normalization of data 
-#Does this make sense ? 
-#
-
-
-
-library(ggplot2)
-library(ModelMetrics)
-
-
 
 #
-#defining multi plot function to get multiple ggplots on one page 
+#defining multi plot function to get multiple ggplots on one page----------------------------------------------------------
 #
-
-
-
 
 multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   library(grid)
@@ -141,10 +129,8 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
     }
   }
 }
+
 #density plots of normalized data 
-
-
-
 for(i in 1:5){
   dp1 <- ggplot(df.list[[i]], aes(x=Annual_Ret)) + geom_density(aes(group='blue', colour='blue', fill='blue'), alpha=0.3)
   dp2 <-  ggplot(df.list[[i]], aes(x=Excess_Ret)) + geom_density(aes(group='blue', colour='blue', fill='blue'), alpha=0.3)
@@ -159,114 +145,10 @@ for(i in 1:5){
   dev.off()
 }
 
-#since dataset small LOOCV 
 
-# Linear Model
+# PREDICTIVE MODELS-----------------------------------------------------------------------------------------------------------
 
-linear.model <- function(input_dataframe,col=14){
-  set.seed(22)
-  input_dataframe<-input_dataframe[sample(nrow(input_dataframe)),] #shuffle 
-  names(input_dataframe)[col] <- "pred"
-  folds <- cut(seq(1,nrow(input_dataframe)),breaks=63,labels=FALSE)
- rmse.linear.OS <- c(1:63)
- rmse.linear.IS <- c(1:63)
-  for(i in 1:63){
-    #Segement your data by fold using the which() function 
-    testIndexes <- which(folds==i,arr.ind=TRUE)
-    testData <- input_dataframe[testIndexes, ]
-    trainData <- input_dataframe[-testIndexes, ]
-    
-    linear.model <- lm(pred~x1+x2+x3+x4+x5+x6,data=trainData)
-    
-    lm.pred.OS <- predict(linear.model,newdata=testData)
-    lm.pred.IS <- predict(linear.model,newdata=trainData)
-    
-    rmse.linear.OS[i] <- rmse(actual=testData$pred,predicted=lm.pred.OS)
-    rmse.linear.IS[i] <- rmse(actual=trainData$pred,predicted=lm.pred.IS)
-  }
- return(cbind(mean(rmse.linear.IS),mean(rmse.linear.OS)))
-}
-
-rmse.linear.normalised.IS <- as.data.frame(matrix(nrow = 5, ncol = 6))
-rownames(rmse.linear.normalised.IS) <- c("Period 1","Period 2","Period 3","Period 4","Period All")
-colnames(rmse.linear.normalised.IS) <- c("y1","y2","y3","y4","y5","y6")
-
-rmse.linear.normalised.OS <- as.data.frame(matrix(nrow = 5, ncol = 6))
-rownames(rmse.linear.normalised.OS) <- c("Period 1","Period 2","Period 3","Period 4","Period All")
-colnames(rmse.linear.normalised.OS) <- c("y1","y2","y3","y4","y5","y6")
-
-#tabulation of insample and outsample errors into tables
-
-for(i in 1:5){
-  for(j in 14:19){
-    x <- linear.model(df.list[[i]],col=j)
-    rmse.linear.normalised.IS[i,j-13] <- x[1,1]
-    rmse.linear.normalised.OS[i,j-13] <- x[1,2]
-    
-  }
-}
-
-#ridge/lasso -> see if needed----------------------------------------------------------------------------------------------
-#install.packages("glmnet")
-#library(glmnet)
-
-# linearmodel.ridge <- function(input_dataframe,col=8){
-#   set.seed(22)
-#   input_dataframe<-input_dataframe[sample(nrow(input_dataframe)),] #shuffle 
-#   names(input_dataframe)[col] <- "pred"
-#   folds <- cut(seq(1,nrow(input_dataframe)),breaks=63,labels=FALSE)
-#   error.ridge <- c(1:63)
-#   for(i in 1:63){
-#     #Segement your data by fold using the which() function 
-#     testIndexes <- which(folds==i,arr.ind=TRUE)
-#     testData <- input_dataframe[testIndexes, ]
-#     trainData <- input_dataframe[-testIndexes, ]
-#     
-#     x.train <- as.matrix(cbind(trainData[,-c(8:19)]))
-#     x.train <- x.train[,-1]
-#     y.train <- as.matrix(trainData["pred"])
-#     cv.model.ridge <- cv.glmnet(x=x.train,y=y.train,alpha=0)
-#     lambda_value_ridge <- cv.model.ridge$lambda.min
-#     model.ridge <- glmnet(x=x.train,y=y.train,alpha=0,lambda = lambda_value_ridge)
-#     
-#     #Predicting for Ridge Regression
-#     x.test <- as.matrix(cbind(testData[,-c(8:19)]))
-#     x.test <- x.test[,-1]
-#     y.test <- as.matrix(testData["pred"])
-#     x.test <- as.matrix(x.test)
-#     
-#     ridge.coef <- coef(model.ridge, s=model.ridge$lambda.min)
-#     x.matrix <- cbind((matrix(1,nrow=nrow(x.test))),x.test)
-#     ridge.pred <- x.matrix %*% ridge.coef
-#     ridge.actual <- df.test[,4]
-#     
-#     model.ridge.predicted <- predict(model.ridge, s = lambda_value_ridge, newx=x.test)
-#     model.ridge.prediction.table <- as.data.frame(cbind(model.ridge.predicted,testData$pred))
-#     colnames(model.ridge.prediction.table) <- c('predicted','actual')
-#     error.ridge[i] <- abs(model.ridge.prediction.table$predicted[1] - model.ridge.prediction.table$actual[1])
-#     
-#     
-#     
-#   }
-#   m3 <- mean(error.ridge)
-#   return(m3)
-# }
-# 
-# error.model5 <- as.data.frame(matrix(nrow = 5, ncol = 6))
-# rownames(error.model5) <- c("Period 1","Period 2","Period 3","Period 4","Period All")
-# colnames(error.model5) <- c("y1","y2","y3","y4","y5","y6")
-# 
-# #making a table with all errors of all Ys and dataframes 
-# for(i in 1:5){
-#   for(j in 8:13){
-#     error.model2[i,j-7] <- linearmodel.ridge(df.list[[i]],col=j)
-#   }
-# }
-# error.model5
-# 
-
-
-# Random forest
+# Random forest---------------------------------------------------------------------------------------------------------------
 randomforest.model <- function(input_dataframe,col=14){
   set.seed(22)
   input_dataframe<-input_dataframe[sample(nrow(input_dataframe)),] #shuffle 
@@ -398,10 +280,7 @@ for( i in 1:6){
   plot(mvtb.model2, response.no=5,predictor.no=i)
 }
 
-#6) MRT cart regression tree---------------------------------------------------------------------------------------------------
-
-
-#7) GAMs ---------------------------------------------------------------------------------------------------------------------
+#GAMs ---------------------------------------------------------------------------------------------------------------------
 gam.model <- function(input_dataframe, col=14){
   set.seed(22)
   input_dataframe <- input_dataframe[sample(nrow(input_dataframe)),] #shuffle 
@@ -457,7 +336,7 @@ for(i in 1:5){
   }
 }
 
-#MARS_Pruned 
+#MARS_Pruned---------------------------------------------------------------------------------------------------------------------- 
 library(earth)
 
 mars.pruned.model <- function(input_dataframe,col=14){
@@ -505,7 +384,7 @@ for(i in 1:5){
   }
 }
 
-#MARS_Unpruned
+#MARS_Unpruned---------------------------------------------------------------------------------------------------------------------
 library(earth)
 
 mars.unpruned.model <- function(input_dataframe,col=14){
@@ -650,8 +529,7 @@ for(i in 1:5){
   }
 }
 
-#Nueral Nets : Check the sensitivity analysis paper-----------------------------------------------------------------------
-
+#Nueral Nets --------------------------------------------------------------------------------------------------------------------
 library(neuralnet)
 
 nueralnet.model <- function(input_dataframe,col=14){
@@ -669,6 +547,8 @@ nueralnet.model <- function(input_dataframe,col=14){
   }
 }
 
+#BART was one of the best models-------------------------------------------------------------------------------------------
+#hence we plot the Partial dependence plots for the BART model
 for(i in 1:6){
   pd_plot(bart_machine=bart.model, i)
 }
